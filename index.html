@@ -868,7 +868,33 @@
 
             if (editingTournamentId) {
                 const t = data.tournaments.find(t => t.id === editingTournamentId);
-                if (t) { t.name = name; t.memberIds = memberIds; t.includesInitial = includesInitial; t.managementType = managementType; t.matchDuration = matchDuration; t.playersPerMatch = playersPerMatch; t.totalMatches = totalMatches; }
+                if (t) {
+                    // 削除されたメンバーを特定
+                    const oldMemberIds = new Set(t.memberIds || []);
+                    const newMemberIds = new Set(memberIds);
+                    const removedMemberIds = [...oldMemberIds].filter(id => !newMemberIds.has(id));
+
+                    // 削除されたメンバーを試合記録から削除
+                    if (removedMemberIds.length > 0) {
+                        const removedSet = new Set(removedMemberIds);
+                        data.matches.forEach(m => {
+                            if (m.tournamentId === editingTournamentId) {
+                                // appearances から削除
+                                m.appearances = (m.appearances || []).filter(a => !removedSet.has(a.playerId));
+                                // substitutions から削除
+                                m.substitutions = (m.substitutions || []).filter(s => !removedSet.has(s.outId) && !removedSet.has(s.inId));
+                            }
+                        });
+                    }
+
+                    t.name = name;
+                    t.memberIds = memberIds;
+                    t.includesInitial = includesInitial;
+                    t.managementType = managementType;
+                    t.matchDuration = matchDuration;
+                    t.playersPerMatch = playersPerMatch;
+                    t.totalMatches = totalMatches;
+                }
             } else {
                 data.tournaments.push({ id: nextId(data.tournaments), name, memberIds, includesInitial, managementType, matchDuration, playersPerMatch, totalMatches });
             }
