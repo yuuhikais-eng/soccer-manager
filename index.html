@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出場時間管理</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><style>.outer{fill:%231a3a4a}.inner{fill:%23f5f1d4;stroke:%2388c9d4;stroke-width:2}.anchor{fill:none;stroke:%231a3a4a;stroke-width:2.5;stroke-linecap:round}.accent{fill:%235ca3d0}</style></defs><circle cx='100' cy='100' r='100' class='outer'/><circle cx='100' cy='100' r='82' class='inner'/><path d='M65 75 L85 85 L80 105 L100 95 L120 105 L115 85 L135 75' class='accent'/><path d='M100 65 L95 90 L100 85 L105 90 Z' class='accent'/><path d='M70 110 Q100 125 130 110' class='anchor'/><circle cx='100' cy='130' r='6' fill='%23225577'/><path d='M100 135 L100 155 M85 145 L115 145' class='anchor'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><style>.outer{fill:%231a3a4a}.inner{fill:%23f5f1d4;stroke:%2388c9d4;stroke-width:2}.anchor{fill:none;stroke:%231a3a4a;stroke-width:2.5;stroke-linecap:round}.accent{fill:%235ca3d0}</style></defs><circle cx='100' cy='100' r='100' class='outer'/><circle cx='100' cy='100' r='82' class='inner'/><path d='M65 75 L85 85 L80 105 L100 95 L120 105 L115 85 L135 75' class='accent'/><path d='M100 65 L95 90 L100 85 L105 90 Z' class='accent'/><path d='M70 110 Q100 125 130 110' class='anchor'/><circle cx='100' cy='130' r='6' fill='%23225577'/><path d='M100 135 L100 155 M85 145 L115 145' class='anchor'/></svg>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="出場管理">
+    <meta name="theme-color" content="#1a5632">
+    <meta name="msapplication-TileColor" content="#1a5632">
+    <link rel="manifest" href="data:application/json,{%22name%22:%22出場時間管理%22,%22short_name%22:%22出場管理%22,%22icons%22:[{%22src%22:%22data:image/svg%2bxml,%253Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 200 200%27%253E%253Ccircle cx=%27100%27 cy=%27100%27 r=%2795%27 fill=%27%231a3a4a%27/%253E%253Ccircle cx=%27100%27 cy=%27100%27 r=%2785%27 fill=%27%23f5f1d4%27/%253E%253Ccircle cx=%27100%27 cy=%27100%27 r=%2780%27 fill=%27%23f5f1d4%27 stroke=%27%2388c9d4%27 stroke-width=%273%27/%253E%253Cpath d=%27M80 70 Q85 75 90 70 M110 70 Q115 75 120 70%27 fill=%27none%27 stroke=%27%231a3a4a%27 stroke-width=%273%27 stroke-linecap=%27round%27/%253E%253Cpath d=%27M100 60 L100 140 M70 110 Q100 130 130 110%27 fill=%27none%27 stroke=%27%231a3a4a%27 stroke-width=%274%27 stroke-linecap=%27round%27/%253E%253Ccircle cx=%27100%27 cy=%27130%27 r=%278%27 fill=%27%23225577%27/%253E%253Cpath d=%27M100 138 Q95 145 90 150 M100 138 Q105 145 110 150%27 fill=%27none%27 stroke=%27%231a3a4a%27 stroke-width=%272%27/%253E%253C/svg%253E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg%2bxml%22,%22purpose%22:%22any%22}],%22display%22:%22standalone%22,%22background_color%22:%22%231a5632%22,%22theme_color%22:%22%231a5632%22,%22start_url%22:%22/%22}">
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <style>
+        #loading-screen {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #1a5632, #2d8a4e);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999; flex-direction: column; gap: 16px; color: white;
+        }
+        #loading-screen.hidden { display: none; }
+        .spinner {
+            width: 44px; height: 44px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+        }
+        header {
+            background: linear-gradient(135deg, #1a5632, #2d8a4e);
+            color: white; padding: 16px 24px; text-align: center;
+        }
+        header h1 { font-size: 1.3rem; font-weight: 700; }
+        .btn-settings {
+            background: none; border: none; color: white; font-size: 1.4rem;
+            cursor: pointer; padding: 8px; transition: transform 0.2s;
+        }
+        .btn-settings:hover { transform: rotate(20deg); }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 12px; }
+
+        .tabs {
+            display: flex; gap: 3px; margin-bottom: 12px;
+            background: white; border-radius: 12px; padding: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
+        .tab {
+            flex: 1; min-width: 56px; padding: 9px 4px;
+            border: none; background: transparent; border-radius: 9px;
+            cursor: pointer; font-size: 0.8rem; font-weight: 600;
+            color: #666; transition: all 0.2s; white-space: nowrap;
+        }
+        .tab.active { background: #1a5632; color: white; }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        .card {
+            background: white; border-radius: 12px; padding: 16px;
+            margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card h2 { font-size: 0.95rem; margin-bottom: 12px; color: #1a5632; font-weight: 700; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.82rem; color: #555; margin-bottom: 4px; }
+        .form-group input[type="date"],
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group select {
+            width: 100%; padding: 9px 12px; border: 1px solid #e0e0e0;
+            border-radius: 8px; font-size: 0.9rem; outline: none;
+            background: white;
+        }
+        .form-group input:focus,
+        .form-group select:focus { border-color: #2d8a4e; }
+
+        .btn-primary {
+            width: 100%; padding: 13px; background: #1a5632; color: white;
+            border: none; border-radius: 10px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; margin-top: 8px;
+        }
+        .btn-primary:hover { background: #145228; }
+        .btn-secondary {
+            padding: 7px 14px; background: #f0f0f0; color: #444;
+            border: none; border-radius: 7px; font-size: 0.82rem;
+            font-weight: 600; cursor: pointer;
+        }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-danger {
+            background: none; border: none; color: #ccc;
+            cursor: pointer; font-size: 1.1rem; padding: 4px;
+        }
+        .btn-danger:hover { color: #e74c3c; }
+        .add-btn {
+            width: 100%; padding: 9px; border: 2px dashed #ccc;
+            background: transparent; border-radius: 8px; cursor: pointer;
+            font-size: 0.88rem; color: #999; margin-top: 8px;
+        }
+        .add-btn:hover { border-color: #2d8a4e; color: #2d8a4e; }
+
+        /* 選手グリッド（試合記録） */
+        .match-players-grid { display: flex; flex-direction: column; gap: 5px; max-height: 380px; overflow-y: auto; }
+        .match-player-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; background: #f8f9fa; border-radius: 8px;
+        }
+        .match-player-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+        .match-player-name { font-size: 0.88rem; font-weight: 600; }
+        .match-player-count { font-size: 0.75rem; color: #2d8a4e; font-weight: 700; }
+        .appearance-btns { display: flex; gap: 3px; }
+        .appearance-btn {
+            padding: 5px 10px; border: 2px solid #e0e0e0; background: white;
+            border-radius: 6px; cursor: pointer; font-size: 0.75rem;
+            font-weight: 600; color: #666; transition: all 0.15s;
+        }
+        .appearance-btn.sel-full   { border-color: #1a5632; background: #1a5632; color: white; }
+        .appearance-btn.sel-first  { border-color: #2980b9; background: #2980b9; color: white; }
+        .appearance-btn.sel-second { border-color: #e67e22; background: #e67e22; color: white; }
+
+        .minutes-input {
+            width: 68px; padding: 5px 8px; border: 2px solid #e0e0e0;
+            border-radius: 6px; font-size: 0.85rem; font-weight: 600;
+            text-align: center; outline: none;
+        }
+        .minutes-input:focus { border-color: #2d8a4e; }
+        .minutes-label { font-size: 0.78rem; color: #888; }
+
+        /* 交代UI */
+        .sub-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
+        .sub-section-title { font-size: 0.82rem; font-weight: 700; color: #555; margin-bottom: 8px; }
+        .sub-row {
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 6px; background: #fff8f0; padding: 7px 10px;
+            border-radius: 8px; border: 1px solid #ffe0b2;
+        }
+        .sub-row select {
+            flex: 1; padding: 6px 8px; border: 1px solid #e0e0e0;
+            border-radius: 6px; font-size: 0.82rem; outline: none;
+            background: white; min-width: 0;
+        }
+        .sub-arrow { font-size: 1rem; color: #e67e22; flex-shrink: 0; }
+        .sub-minute-wrap { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+        .sub-minute-input {
+            width: 52px; padding: 5px 6px; border: 1px solid #e0e0e0;
+            border-radius: 6px; font-size: 0.82rem; text-align: center; outline: none;
+        }
+        .sub-minute-input:focus { border-color: #e67e22; }
+
+        /* 選手一覧 */
+        .player-list { list-style: none; }
+        .player-item { display: flex; align-items: center; padding: 9px 0; border-bottom: 1px solid #f0f0f0; gap: 9px; }
+        .player-item:last-child { border-bottom: none; }
+        .player-number {
+            width: 30px; height: 30px; background: #1a5632; color: white;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+        }
+        .player-name-input {
+            flex: 1; border: 1px solid #e0e0e0; border-radius: 7px;
+            padding: 7px 10px; font-size: 0.88rem; outline: none;
+        }
+        .player-name-input:focus { border-color: #2d8a4e; }
+        .player-total { font-weight: 700; font-size: 0.95rem; color: #1a5632; min-width: 46px; text-align: right; }
+
+        /* イベント管理 */
+        .tournament-item {
+            padding: 12px; border: 1px solid #e8e8e8; border-radius: 10px;
+            margin-bottom: 8px; transition: border-color 0.2s;
+        }
+        .tournament-header { display: flex; justify-content: space-between; align-items: center; }
+        .tournament-name { font-weight: 700; font-size: 0.95rem; }
+        .tournament-meta { font-size: 0.78rem; color: #888; margin-top: 3px; }
+
+        /* メンバー選択チェックボックス */
+        .member-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .member-chip {
+            display: flex; align-items: center; gap: 5px;
+            padding: 5px 10px; border: 2px solid #e0e0e0; border-radius: 20px;
+            cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #666;
+            transition: all 0.15s; user-select: none;
+        }
+        .member-chip.checked { border-color: #1a5632; background: #1a5632; color: white; }
+
+        /* 管理タイプ選択 */
+        .mgmt-type-row { display: flex; gap: 14px; margin-top: 4px; }
+        .mgmt-type-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.88rem; cursor: pointer; font-weight: 600; color: #444;
+        }
+
+        /* 集計 */
+        .stat-tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+        .stat-tab {
+            padding: 6px 12px; border: 2px solid #e0e0e0; background: white;
+            border-radius: 20px; cursor: pointer; font-size: 0.8rem;
+            font-weight: 600; color: #666; transition: all 0.15s;
+        }
+        .stat-tab.active { border-color: #1a5632; background: #1a5632; color: white; }
+
+        .ranking-table { width: 100%; border-collapse: collapse; }
+        .ranking-table th { text-align: left; padding: 8px 6px; border-bottom: 2px solid #1a5632; font-size: 0.78rem; color: #666; }
+        .ranking-table td { padding: 9px 6px; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+        .ranking-table tr:hover { background: #f8f9fa; }
+        .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 0.72rem; font-weight: 700; }
+        .rank-1 { background: #ffd700; color: #333; }
+        .rank-2 { background: #c0c0c0; color: #333; }
+        .rank-3 { background: #cd7f32; color: white; }
+        .bar-container { width: 100%; height: 18px; background: #f0f0f0; border-radius: 9px; overflow: hidden; }
+        .bar-fill { height: 100%; background: linear-gradient(90deg, #1a5632, #2d8a4e); border-radius: 9px; min-width: 2px; }
+
+        /* 履歴 */
+        .history-group-title {
+            font-size: 0.8rem; font-weight: 700; color: #888;
+            padding: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .match-history-item {
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .match-history-item:last-child { border-bottom: none; }
+        .match-summary {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; cursor: pointer;
+        }
+        .match-summary-left { flex: 1; }
+        .match-summary-actions { display: flex; align-items: center; gap: 4px; }
+        .match-date { font-weight: 700; color: #1a5632; font-size: 0.88rem; }
+        .match-opponent { font-size: 0.82rem; color: #666; }
+        .match-detail { font-size: 0.77rem; color: #888; line-height: 1.6; }
+        .expand-arrow { font-size: 0.75rem; color: #aaa; transition: transform 0.2s; }
+        .expand-arrow.open { transform: rotate(180deg); }
+
+        .match-gameplan {
+            display: none; padding: 10px 12px; background: #f8fff8;
+            border-radius: 8px; margin-bottom: 10px;
+            border: 1px solid #c8e6c9;
+        }
+        .match-gameplan.open { display: block; }
+        .gameplan-title { font-size: 0.75rem; font-weight: 700; color: #2d8a4e; margin-bottom: 6px; }
+        .gameplan-sub-row { font-size: 0.8rem; color: #444; padding: 3px 0; }
+        .gameplan-no-sub { font-size: 0.8rem; color: #aaa; }
+
+        /* 編集ボタン */
+        .btn-edit {
+            background: none; border: none; color: #aaa;
+            cursor: pointer; font-size: 1rem; padding: 4px;
+        }
+        .btn-edit:hover { color: #2d8a4e; }
+
+        .empty-state { text-align: center; padding: 32px 20px; color: #aaa; font-size: 0.88rem; }
+
+        /* モーダル */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: flex; align-items: flex-end; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal {
+            background: white; border-radius: 16px 16px 0 0;
+            padding: 20px; width: 100%; max-width: 600px; max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal h3 { font-size: 1rem; margin-bottom: 14px; color: #1a5632; }
+        .modal-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .modal-actions .btn-primary { flex: 1; margin-top: 0; }
+
+        /* 設定タブ */
+        .settings-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+        .settings-tab-btn {
+            padding: 8px 12px; border: none; background: #f0f0f0;
+            border-radius: 6px; cursor: pointer; font-size: 0.88rem;
+            font-weight: 600; color: #666; transition: all 0.15s;
+        }
+        .settings-tab-btn.active { background: #1a5632; color: white; }
+        .settings-tab-content { display: none; }
+        .settings-tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <p>データを読み込み中...</p>
+    </div>
+
+    <!-- イベント編集モーダル -->
+    <div class="modal-overlay hidden" id="tournament-modal">
+        <div class="modal">
+            <h3 id="modal-title">イベントを追加</h3>
+            <div class="form-group">
+                <label>イベント名</label>
+                <input type="text" id="modal-tournament-name" placeholder="例: 春季リーグ">
+            </div>
+            <div class="form-group">
+                <label>出場時間の管理方法</label>
+                <div class="mgmt-type-row">
+                    <label class="mgmt-type-label">
+                        <input type="radio" name="mgmt-type" id="mgmt-count" value="count" checked>
+                        試合数管理（フル/前半/後半）
+                    </label>
+                    <label class="mgmt-type-label">
+                        <input type="radio" name="mgmt-type" id="mgmt-minutes" value="minutes">
+                        分数管理（出場分数）
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>1試合の出場人数</label>
+                <input type="number" id="modal-players-per-match" min="1" max="30" placeholder="例: 8">
+            </div>
+            <div class="form-group" id="modal-duration-wrap" style="display:none">
+                <label>1試合の時間（分）</label>
+                <input type="number" id="modal-match-duration" min="1" max="300" placeholder="例: 40">
+            </div>
+            <div class="form-group" id="modal-initial-wrap" style="display:flex;align-items:center;gap:10px;padding:8px 0">
+                <input type="checkbox" id="modal-includes-initial" style="width:18px;height:18px;cursor:pointer">
+                <label for="modal-includes-initial" style="font-size:0.88rem;color:#444;cursor:pointer;margin:0">過去の集計（初期値）を含める</label>
+            </div>
+            <div class="form-group">
+                <label style="display:flex;justify-content:space-between;align-items:center">
+                    参加メンバーを選択
+                    <button type="button" class="btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="toggleAllMembers()">全選択/全解除</button>
+                </label>
+                <div id="modal-member-grid" class="member-grid"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
+                <button class="btn-primary" onclick="saveTournament()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定モーダル -->
+    <div class="modal-overlay hidden" id="settings-modal">
+        <div class="modal">
+            <h3 style="display:flex;justify-content:space-between;align-items:center">
+                設定
+                <button class="btn-danger" onclick="closeSettingsModal()" style="padding:0;font-size:1.3rem">×</button>
+            </h3>
+            <div class="settings-tabs" style="display:flex;gap:6px;margin-bottom:14px;border-bottom:2px solid #f0f0f0;padding-bottom:8px">
+                <button class="settings-tab-btn active" data-tab="players-mgmt" onclick="switchSettingsTab('players-mgmt')">選手管理</button>
+                <button class="settings-tab-btn" data-tab="mvp-mgmt" onclick="switchSettingsTab('mvp-mgmt')">MVP管理</button>
+            </div>
+
+            <!-- 選手管理タブ -->
+            <div id="players-mgmt-content" class="settings-tab-content active">
+                <div style="margin-bottom:12px">
+                    <h4 style="font-size:0.92rem;font-weight:700;color:#1a5632;margin-bottom:10px">選手一覧</h4>
+                    <ul id="settingsPlayerList" class="player-list"></ul>
+                    <button class="add-btn" onclick="addPlayer()">＋ 選手を追加</button>
+                </div>
+            </div>
+
+            <!-- MVP管理タブ -->
+            <div id="mvp-mgmt-content" class="settings-tab-content">
+                <div style="margin-bottom:14px">
+                    <h4 style="font-size:0.92rem;font-weight:700;color:#1a5632;margin-bottom:10px">MVP記録を追加</h4>
+                    <div class="form-group">
+                        <label>イベント名</label>
+                        <select id="mvp-tournament-select">
+                            <option value="">-- イベントを選んでください --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>日付</label>
+                        <input type="date" id="mvp-date">
+                    </div>
+                    <div class="form-group">
+                        <label>MVP選手</label>
+                        <select id="mvp-player-select">
+                            <option value="">-- 選手を選んでください --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>コメント（選出理由など）</label>
+                        <input type="text" id="mvp-comment" placeholder="例: ゴール3本、キープ力抜群">
+                    </div>
+                    <button class="btn-primary" onclick="saveMVP()">MVP記録を保存</button>
+                </div>
+
+                <div>
+                    <h4 style="font-size:0.92rem;font-weight:700;color:#1a5632;margin-bottom:10px">MVP履歴</h4>
+                    <div id="mvp-history-content" class="empty-state">MVP記録がありません</div>
+                </div>
+            </div>
+
+            <div style="margin-top:16px">
+                <button class="btn-secondary" style="width:100%" onclick="closeSettingsModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 試合編集モーダル -->
+    <div class="modal-overlay hidden" id="edit-match-modal">
+        <div class="modal">
+            <h3>試合記録を編集</h3>
+            <div class="form-group">
+                <label>日付</label>
+                <input type="date" id="edit-matchDate">
+            </div>
+            <div class="form-group">
+                <label>対戦相手</label>
+                <input type="text" id="edit-matchOpponent">
+            </div>
+            <div class="form-group">
+                <label>入力者</label>
+                <input type="text" id="edit-matchRecorder" list="recorder-list" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>出場選手</label>
+                <div id="edit-matchPlayersGrid" class="match-players-grid"></div>
+            </div>
+            <div class="sub-section">
+                <div class="sub-section-title">⇄ 選手交代</div>
+                <div id="edit-sub-rows"></div>
+                <button class="add-btn" onclick="addEditSubstitution()">＋ 交代を追加</button>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeEditModal()">キャンセル</button>
+                <button class="btn-primary" onclick="saveEditMatch()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <header style="display:flex;justify-content:space-between;align-items:center">
+        <h1>⚽ 出場時間管理</h1>
+        <button class="btn-settings" onclick="openSettingsModal()">⚙️</button>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="record">試合記録</button>
+            <button class="tab" data-tab="tournaments">イベント</button>
+            <button class="tab" data-tab="ranking">集計</button>
+            <button class="tab" data-tab="history">履歴</button>
+        </div>
+
+        <!-- 試合記録 -->
+        <div id="record" class="panel active">
+            <div class="card">
+                <h2>新しい試合を記録</h2>
+                <div class="form-group">
+                    <label>イベントを選択</label>
+                    <select id="record-tournament" onchange="onTournamentSelect()">
+                        <option value="">-- イベントを選んでください --</option>
+                    </select>
+                </div>
+                <div id="record-form" style="display:none">
+                    <div class="form-group">
+                        <label>日付</label>
+                        <input type="date" id="matchDate">
+                    </div>
+                    <div class="form-group">
+                        <label>対戦相手</label>
+                        <input type="text" id="matchOpponent" placeholder="例: FCドラゴンズ">
+                    </div>
+                    <div class="form-group">
+                        <label>入力者</label>
+                        <input type="text" id="matchRecorder" placeholder="例: 田中コーチ" list="recorder-list" autocomplete="off">
+                        <datalist id="recorder-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;justify-content:space-between;align-items:center">
+                            出場選手を選択
+                            <span id="appearance-counter" style="font-size:0.8rem;font-weight:700;color:#2d8a4e"></span>
+                        </label>
+                        <div id="matchPlayersGrid" class="match-players-grid"></div>
+                    </div>
+                    <div class="sub-section">
+                        <div class="sub-section-title">⇄ 選手交代</div>
+                        <div id="sub-rows"></div>
+                        <button class="add-btn" onclick="addSubstitution()">＋ 交代を追加</button>
+                    </div>
+                    <button class="btn-primary" onclick="saveMatch()">この試合を保存</button>
+                </div>
+                <div id="record-empty" class="empty-state">イベントを選択すると<br>出場選手の記録ができます</div>
+            </div>
+        </div>
+
+        <!-- イベント管理 -->
+        <div id="tournaments" class="panel">
+            <div class="card">
+                <h2>イベント一覧</h2>
+                <div id="tournament-list"></div>
+                <button class="add-btn" onclick="openModal(null)">＋ イベントを追加</button>
+            </div>
+        </div>
+
+        <!-- 選手一覧 -->
+        <div id="players" class="panel">
+            <div class="card">
+                <h2>選手一覧（背番号順）</h2>
+                <ul id="playerList" class="player-list"></ul>
+                <button class="add-btn" onclick="addPlayer()">＋ 選手を追加</button>
+            </div>
+        </div>
+
+        <!-- 集計 -->
+        <div id="ranking" class="panel">
+            <div class="card">
+                <h2>出場数集計</h2>
+                <div class="stat-tabs" id="stat-tabs"></div>
+                <div id="rankingContent"></div>
+            </div>
+        </div>
+
+        <!-- 履歴 -->
+        <div id="history" class="panel">
+            <div class="card">
+                <h2>試合履歴</h2>
+                <div class="form-group">
+                    <label for="historyDateFilter">表示日付:</label>
+                    <input type="date" id="historyDateFilter" onchange="updateHistoryDateFilter(this.value)">
+                </div>
+                <div id="matchHistory"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+/* ===== Firebase ===== */
+        const firebaseConfig = {
+            apiKey: "AIzaSyDK3OXXBAB2n-k7Gp29ubsU1qdCVrmSJ28",
+            authDomain: "shida-ufc.firebaseapp.com",
+            projectId: "shida-ufc",
+            storageBucket: "shida-ufc.firebasestorage.app",
+            messagingSenderId: "104455594974",
+            appId: "1:104455594974:web:f11723596b3ca3cf1c334f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const docRef = db.collection('soccer').doc('data');
+
+        function getDefaultData() {
+            const defaultPlayers = [
+                { name: 'りくと',   number: 18, initial: 6.5 },
+                { name: 'まかぜ',   number: 35, initial: 7   },
+                { name: 'いつき',   number: 56, initial: 6.5 },
+                { name: 'たいよう', number:  4, initial: 6.5 },
+                { name: 'けんしん', number: 32, initial: 6.5 },
+                { name: 'りつき',   number: 88, initial: 7   },
+                { name: 'こう',     number: 46, initial: 7   },
+                { name: 'きっぺい', number: 40, initial: 7   },
+                { name: 'そうや',   number: 29, initial: 6.5 },
+                { name: 'ゆずき',   number: 60, initial: 7   },
+                { name: 'とま',     number: 45, initial: 6.5 },
+                { name: 'あおと',   number: 36, initial: 6.5 },
+                { name: 'かい',     number: 81, initial: 6   },
+                { name: 'とうり',   number: 98, initial: 6.5 },
+                { name: 'ほくと',   number: 90, initial: 6.5 },
+                { name: 'ゆうせい', number: 31, initial: 6   },
+                { name: 'かいと',   number: 80, initial: 6.5 },
+            ];
+            const players = defaultPlayers.map((p, i) => ({ id: i + 1, number: p.number, name: p.name, initial: p.initial }));
+            const allIds = players.map(p => p.id);
+            return {
+                players,
+                tournaments: [{ id: 1, name: '牧之原フェス', memberIds: allIds, includesInitial: true, initialMatchCount: 14, managementType: 'count' }],
+                matches: [],
+                mvps: []
+            };
+        }
+
+        function saveData() { docRef.set(JSON.parse(JSON.stringify(data))); }
+
+        let data = getDefaultData();
+        let matchAppearances = {};
+        let matchSubstitutions = [];
+        let editingTournamentId = null;
+        let editingMatchId = null;
+        let editMatchAppearances = {};
+        let editMatchSubstitutions = [];
+        let currentStatTab = 'total';
+        let isLoaded = false;
+        let lastMatchDate = '';
+        let expandedMatchIds = new Set();
+        let historyDateFilter = '';
+
+        docRef.onSnapshot((snapshot) => {
+            if (snapshot.exists) {
+                data = snapshot.data();
+            } else {
+                data = getDefaultData();
+                saveData();
+            }
+            document.getElementById('loading-screen').classList.add('hidden');
+            if (isLoaded) refreshAll();
+            isLoaded = true;
+            refreshAll();
+        }, (err) => {
+            console.error(err);
+            document.getElementById('loading-screen').classList.add('hidden');
+        });
+
+        /* ===== タブ ===== */
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+                refreshAll();
+            });
+        });
+
+        function refreshAll() {
+            renderPlayerList();
+            renderTournamentSelect();
+            renderTournamentList();
+            renderHistory();
+            renderRanking();
+            renderRecorderList();
+        }
+
+        function renderRecorderList() {
+            const dl = document.getElementById('recorder-list');
+            if (!dl) return;
+            const names = [...new Set(data.matches.map(m => m.recorder).filter(Boolean))];
+            dl.innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+        }
+
+        /* ===== ユーティリティ ===== */
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+        function nextId(arr) {
+            return arr.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1;
+        }
+        function sortedPlayers() {
+            return [...data.players].sort((a, b) => a.number - b.number);
+        }
+        function getPlayerName(id) {
+            const p = data.players.find(p => p.id === id);
+            return p ? `#${p.number} ${p.name}` : '不明';
+        }
+        function getTournamentType(tid) {
+            const t = data.tournaments.find(t => t.id === tid);
+            return t ? (t.managementType || 'count') : 'count';
+        }
+
+        /* ===== 出場合計計算 ===== */
+        function getPlayerTotal(playerId, tournamentId) {
+            const isMinutes = tournamentId !== null && tournamentId !== undefined
+                ? getTournamentType(tournamentId) === 'minutes'
+                : false;
+            let total = 0;
+            if (!isMinutes) {
+                if (tournamentId === undefined || tournamentId === null) {
+                    const p = data.players.find(p => p.id === playerId);
+                    total = p ? (p.initial || 0) : 0;
+                } else {
+                    const t = data.tournaments.find(t => t.id === tournamentId);
+                    if (t && t.includesInitial) {
+                        const p = data.players.find(p => p.id === playerId);
+                        total = p ? (p.initial || 0) : 0;
+                    }
+                }
+            }
+            data.matches.forEach(m => {
+                if (tournamentId !== undefined && tournamentId !== null && m.tournamentId !== tournamentId) return;
+                const a = m.appearances.find(a => a.playerId === playerId);
+                if (a) total += a.value;
+            });
+            return total;
+        }
+
+        function formatTotal(total, type) {
+            if (type === 'minutes') return total + '分';
+            return total % 1 === 0 ? total.toString() : total.toFixed(1);
+        }
+
+        /* ===== 選手一覧 ===== */
+        function renderPlayerList() {
+            const list = document.getElementById('playerList');
+            list.innerHTML = '';
+            sortedPlayers().forEach(p => {
+                const total = getPlayerTotal(p.id, null);
+                const li = document.createElement('li');
+                li.className = 'player-item';
+                li.innerHTML = `
+                    <div class="player-number">${p.number}</div>
+                    <input class="player-name-input" value="${esc(p.name)}"
+                        onchange="updatePlayerName(${p.id}, this.value)" placeholder="名前">
+                    <button class="btn-danger" onclick="deletePlayer(${p.id})">×</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        function addPlayer() {
+            const maxNum = data.players.reduce((m, p) => Math.max(m, p.number), 0);
+            data.players.push({ id: nextId(data.players), number: maxNum + 1, name: '選手' + (maxNum + 1), initial: 0 });
+            saveData(); renderPlayerList(); renderTournamentList(); renderTournamentSelect(); renderSettingsPlayerList();
+        }
+
+        function deletePlayer(id) {
+            if (!confirm('この選手を削除しますか？')) return;
+            data.players = data.players.filter(p => p.id !== id);
+            data.tournaments.forEach(t => { t.memberIds = t.memberIds.filter(mid => mid !== id); });
+            data.matches.forEach(m => { m.appearances = m.appearances.filter(a => a.playerId !== id); });
+            if (data.mvps) data.mvps = data.mvps.filter(m => m.playerId !== id);
+            saveData(); refreshAll(); renderSettingsPlayerList();
+        }
+
+        function updatePlayerName(id, name) {
+            const p = data.players.find(p => p.id === id);
+            if (p) { p.name = name; saveData(); }
+        }
+
+        /* ===== イベント管理 ===== */
+        function renderTournamentList() {
+            const container = document.getElementById('tournament-list');
+            if (!data.tournaments.length) {
+                container.innerHTML = '<div class="empty-state">イベントがまだありません</div>';
+                return;
+            }
+            container.innerHTML = '';
+            data.tournaments.forEach(t => {
+                const matchCount = (t.initialMatchCount || 0) + data.matches.filter(m => m.tournamentId === t.id).length;
+                const memberCount = t.memberIds.length;
+                const typeLabel = (t.managementType || 'count') === 'minutes' ? '分数管理' : '試合数管理';
+                const isCompleted = t.completed || false;
+                const div = document.createElement('div');
+                div.className = 'tournament-item';
+                div.style.opacity = isCompleted ? '0.6' : '1';
+                div.innerHTML = `
+                    <div class="tournament-header">
+                        <div>
+                            <div class="tournament-name" style="display:flex;align-items:center;gap:6px">
+                                ${esc(t.name)}
+                                ${isCompleted ? '<span style="font-size:0.7rem;background:#888;color:white;padding:2px 7px;border-radius:10px;font-weight:600">完了</span>' : ''}
+                            </div>
+                            <div class="tournament-meta">メンバー ${memberCount}人 ／ 試合 ${matchCount}試合 ／ ${typeLabel}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <button class="btn-secondary" onclick="toggleTournamentComplete(${t.id})" style="${isCompleted ? 'background:#e8f5e9;color:#2d8a4e' : ''}">
+                                ${isCompleted ? '再開' : '完了'}
+                            </button>
+                            <button class="btn-secondary" onclick="openModal(${t.id})">編集</button>
+                            <button class="btn-danger" onclick="deleteTournament(${t.id})">×</button>
+                        </div>
+                    </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleTournamentComplete(id) {
+            const t = data.tournaments.find(t => t.id === id);
+            if (!t) return;
+            t.completed = !t.completed;
+            saveData(); refreshAll();
+        }
+
+        function openModal(tournamentId) {
+            editingTournamentId = tournamentId;
+            const modal = document.getElementById('tournament-modal');
+            const nameInput = document.getElementById('modal-tournament-name');
+            const grid = document.getElementById('modal-member-grid');
+            const title = document.getElementById('modal-title');
+
+            const t = tournamentId ? data.tournaments.find(t => t.id === tournamentId) : null;
+            title.textContent = t ? 'イベントを編集' : 'イベントを追加';
+            nameInput.value = t ? t.name : '';
+
+            const mgmtType = t ? (t.managementType || 'count') : 'count';
+            document.getElementById('mgmt-count').checked = mgmtType === 'count';
+            document.getElementById('mgmt-minutes').checked = mgmtType === 'minutes';
+            document.getElementById('modal-players-per-match').value = t ? (t.playersPerMatch || '') : '';
+            document.getElementById('modal-match-duration').value = t ? (t.matchDuration || '') : '';
+            updateInitialWrap();
+
+            document.getElementById('modal-includes-initial').checked = t ? (t.includesInitial || false) : false;
+            const selectedIds = new Set(t ? t.memberIds : data.players.map(p => p.id));
+            grid.innerHTML = '';
+            sortedPlayers().forEach(p => {
+                const chip = document.createElement('div');
+                chip.className = 'member-chip' + (selectedIds.has(p.id) ? ' checked' : '');
+                chip.dataset.id = p.id;
+                chip.textContent = `#${p.number} ${p.name}`;
+                chip.onclick = () => chip.classList.toggle('checked');
+                grid.appendChild(chip);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function updateInitialWrap() {
+            const isMinutes = document.getElementById('mgmt-minutes').checked;
+            document.getElementById('modal-initial-wrap').style.display = isMinutes ? 'none' : 'flex';
+            document.getElementById('modal-duration-wrap').style.display = isMinutes ? 'block' : 'none';
+        }
+        document.querySelectorAll('input[name="mgmt-type"]').forEach(r => r.addEventListener('change', updateInitialWrap));
+
+        function closeModal() {
+            document.getElementById('tournament-modal').classList.add('hidden');
+        }
+
+        function toggleAllMembers() {
+            const chips = document.querySelectorAll('#modal-member-grid .member-chip');
+            const allChecked = [...chips].every(c => c.classList.contains('checked'));
+            chips.forEach(c => allChecked ? c.classList.remove('checked') : c.classList.add('checked'));
+        }
+
+        function saveTournament() {
+            const name = document.getElementById('modal-tournament-name').value.trim();
+            if (!name) { alert('イベント名を入力してください'); return; }
+            const memberIds = [...document.querySelectorAll('#modal-member-grid .member-chip.checked')]
+                .map(c => parseInt(c.dataset.id));
+            const includesInitial = document.getElementById('modal-includes-initial').checked;
+            const managementType = document.getElementById('mgmt-minutes').checked ? 'minutes' : 'count';
+            const matchDuration = managementType === 'minutes' ? (parseInt(document.getElementById('modal-match-duration').value) || null) : null;
+            const playersPerMatch = parseInt(document.getElementById('modal-players-per-match').value) || null;
+
+            if (editingTournamentId) {
+                const t = data.tournaments.find(t => t.id === editingTournamentId);
+                if (t) { t.name = name; t.memberIds = memberIds; t.includesInitial = includesInitial; t.managementType = managementType; t.matchDuration = matchDuration; t.playersPerMatch = playersPerMatch; }
+            } else {
+                data.tournaments.push({ id: nextId(data.tournaments), name, memberIds, includesInitial, managementType, matchDuration, playersPerMatch });
+            }
+            saveData(); closeModal(); refreshAll();
+        }
+
+        function deleteTournament(id) {
+            if (!confirm('このイベントを削除しますか？\n（関連する試合記録も削除されます）')) return;
+            data.tournaments = data.tournaments.filter(t => t.id !== id);
+            data.matches = data.matches.filter(m => m.tournamentId !== id);
+            saveData(); refreshAll();
+        }
+
+        /* ===== 試合記録 ===== */
+        function renderTournamentSelect() {
+            const sel = document.getElementById('record-tournament');
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">-- イベントを選んでください --</option>';
+            data.tournaments.filter(t => !t.completed).forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+        }
+
+        function onTournamentSelect() {
+            const tid = parseInt(document.getElementById('record-tournament').value);
+            const form = document.getElementById('record-form');
+            const empty = document.getElementById('record-empty');
+            if (!tid) { form.style.display = 'none'; empty.style.display = ''; return; }
+            form.style.display = '';
+            empty.style.display = 'none';
+            renderMatchGrid(tid);
+            const dateInput = document.getElementById('matchDate');
+            dateInput.value = lastMatchDate || new Date().toISOString().split('T')[0];
+            matchSubstitutions = [];
+            renderSubRows('sub-rows', matchSubstitutions, tid);
+            updateAppearanceCounter();
+        }
+
+        function updateAppearanceCounter() {
+            const tid = parseInt(document.getElementById('record-tournament').value);
+            const t = data.tournaments.find(t => t.id === tid);
+            const counter = document.getElementById('appearance-counter');
+            if (!counter || !t) return;
+            const selected = Object.values(matchAppearances).filter(v => v > 0).length;
+            const max = t.playersPerMatch || '?';
+            const remaining = t.playersPerMatch ? (t.playersPerMatch - selected) : null;
+            if (remaining !== null) {
+                counter.textContent = `${selected}/${max}人（残り${remaining}人）`;
+                counter.style.color = remaining < 0 ? '#e74c3c' : '#2d8a4e';
+            } else {
+                counter.textContent = `${selected}人選択`;
+            }
+        }
+
+        function renderMatchGrid(tournamentId, gridId, appearances) {
+            gridId = gridId || 'matchPlayersGrid';
+            const isEditGrid = gridId === 'edit-matchPlayersGrid';
+            const appVarName = isEditGrid ? 'editMatchAppearances' : 'matchAppearances';
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+            if (!isEditGrid) { matchAppearances = {}; appearances = matchAppearances; }
+            if (!appearances) appearances = isEditGrid ? editMatchAppearances : matchAppearances;
+            const t = data.tournaments.find(t => t.id === tournamentId);
+            if (!t) return;
+            const isMinutes = (t.managementType || 'count') === 'minutes';
+            const members = sortedPlayers()
+                .filter(p => t.memberIds.includes(p.id))
+                .sort((a, b) => getPlayerTotal(a.id, tournamentId) - getPlayerTotal(b.id, tournamentId));
+            members.forEach(p => {
+                if (!(p.id in appearances)) appearances[p.id] = 0;
+                const count = getPlayerTotal(p.id, tournamentId);
+                const type = t.managementType || 'count';
+                const row = document.createElement('div');
+                row.className = 'match-player-row';
+                if (isMinutes) {
+                    const curVal = appearances[p.id] || 0;
+                    row.innerHTML = `
+                        <span class="match-player-info">
+                            <span class="match-player-name">#${p.number} ${esc(p.name)}</span>
+                            <span class="match-player-count">${formatTotal(count, type)}</span>
+                        </span>
+                        <input type="number" class="minutes-input" min="0" max="200"
+                            value="${curVal}" placeholder="0"
+                            data-pid="${p.id}"
+                            oninput="${appVarName}[${p.id}]=parseFloat(this.value)||0">
+                        <span class="minutes-label">分</span>`;
+                } else {
+                    row.innerHTML = `
+                        <span class="match-player-info">
+                            <span class="match-player-name">#${p.number} ${esc(p.name)}</span>
+                            <span class="match-player-count">${formatTotal(count, type)}</span>
+                        </span>
+                        <div class="appearance-btns">
+                            <button class="appearance-btn" data-pid="${p.id}" onclick="setAppearance(${p.id},1,this,'full',${appVarName})">フル</button>
+                            <button class="appearance-btn" data-pid="${p.id}" onclick="setAppearance(${p.id},0.5,this,'first',${appVarName})">前半</button>
+                            <button class="appearance-btn" data-pid="${p.id}" onclick="setAppearance(${p.id},0.5,this,'second',${appVarName})">後半</button>
+                        </div>`;
+                }
+                grid.appendChild(row);
+            });
+        }
+
+        function setAppearance(playerId, value, btn, half, appearances) {
+            appearances = appearances || matchAppearances;
+            const btns = btn.parentElement.querySelectorAll('.appearance-btn');
+            const wasSelected = btn.classList.contains('sel-full') || btn.classList.contains('sel-first') || btn.classList.contains('sel-second');
+            btns.forEach(b => b.classList.remove('sel-full', 'sel-first', 'sel-second'));
+            if (wasSelected) {
+                appearances[playerId] = 0;
+            } else {
+                appearances[playerId] = value;
+                btn.classList.add(half === 'full' ? 'sel-full' : half === 'first' ? 'sel-first' : 'sel-second');
+            }
+            updateAppearanceCounter();
+        }
+
+        /* ===== 交代管理 ===== */
+        function renderSubRows(containerId, subs, tournamentId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            const t = data.tournaments.find(t => t.id === tournamentId);
+            if (!t) return;
+            const isEdit = containerId.startsWith('edit-');
+            const isMinutes = (t.managementType || 'count') === 'minutes';
+            const appearances = isEdit ? editMatchAppearances : matchAppearances;
+            const subsVar = isEdit ? 'editMatchSubstitutions' : 'matchSubstitutions';
+
+            // OUT候補: count→フル(value===1)のみ, minutes→出場あり(value>0)
+            const outCandidates = sortedPlayers().filter(p =>
+                t.memberIds.includes(p.id) && (isMinutes ? appearances[p.id] > 0 : appearances[p.id] === 1)
+            );
+            // IN候補: 未出場(value===0 or 未設定)
+            const inCandidates = sortedPlayers().filter(p =>
+                t.memberIds.includes(p.id) && !(appearances[p.id] > 0)
+            );
+
+            // すべての交代行で既に使用されているプレイヤーIDを記録
+            const usedOutIds = new Set();
+            const usedInIds = new Set();
+            subs.forEach(s => {
+                if (s.outId) usedOutIds.add(s.outId);
+                if (s.inId) usedInIds.add(s.inId);
+            });
+
+            subs.forEach((sub, i) => {
+                // 現在の行で既に選択されている値は除外しない（編集可能にする）
+                // ただし他の行で使用されている選手は候補から除外
+                const lineUsedOutIds = new Set(usedOutIds);
+                const lineUsedInIds = new Set(usedInIds);
+
+                // 現在の行の選択値を一時的に除外リストから削除（編集可能に）
+                if (sub.outId) lineUsedOutIds.delete(sub.outId);
+                if (sub.inId) lineUsedInIds.delete(sub.inId);
+
+                const lineOutOptions = outCandidates
+                    .filter(p => !lineUsedOutIds.has(p.id))
+                    .map(p => `<option value="${p.id}">#${p.number} ${esc(p.name)}</option>`).join('');
+                const lineInOptions = inCandidates
+                    .filter(p => !lineUsedInIds.has(p.id))
+                    .map(p  => `<option value="${p.id}">#${p.number} ${esc(p.name)}</option>`).join('');
+                const removeFunc  = `remove${isEdit ? 'Edit' : ''}Substitution(${i})`;
+                const outChange   = `${subsVar}[${i}].outId=parseInt(this.value)`;
+                const inChange    = `${subsVar}[${i}].inId=parseInt(this.value)`;
+                const minChange   = `${subsVar}[${i}].substitutionMinute=parseInt(this.value)||0`;
+
+                const div = document.createElement('div');
+                div.className = 'sub-row';
+                div.style.flexWrap = 'wrap';
+
+                const minuteHtml = isMinutes ? `
+                    <div class="sub-minute-wrap">
+                        <input type="number" class="sub-minute-input" min="0" max="300"
+                            placeholder="分" value="${sub.substitutionMinute || ''}"
+                            onchange="${minChange}">
+                        <span style="font-size:0.75rem;color:#888">分で交代</span>
+                    </div>` : '';
+
+                div.innerHTML = `
+                    <select onchange="${outChange}">
+                        <option value="">OUT選手</option>
+                        ${lineOutOptions}
+                    </select>
+                    <span class="sub-arrow">→</span>
+                    <select onchange="${inChange}">
+                        <option value="">IN選手</option>
+                        ${lineInOptions}
+                    </select>
+                    ${minuteHtml}
+                    <button class="btn-danger" onclick="${removeFunc}">×</button>`;
+
+                const outSel = div.querySelectorAll('select')[0];
+                const inSel  = div.querySelectorAll('select')[1];
+                if (sub.outId) outSel.value = sub.outId;
+                if (sub.inId)  inSel.value  = sub.inId;
+                container.appendChild(div);
+            });
+        }
+
+        function addSubstitution() {
+            const tid = parseInt(document.getElementById('record-tournament').value);
+            matchSubstitutions.push({ outId: null, inId: null, substitutionMinute: null });
+            renderSubRows('sub-rows', matchSubstitutions, tid);
+        }
+
+        function removeSubstitution(index) {
+            const tid = parseInt(document.getElementById('record-tournament').value);
+            matchSubstitutions.splice(index, 1);
+            renderSubRows('sub-rows', matchSubstitutions, tid);
+        }
+
+        function addEditSubstitution() {
+            editMatchSubstitutions.push({ outId: null, inId: null, substitutionMinute: null });
+            renderSubRows('edit-sub-rows', editMatchSubstitutions, editingMatchTournamentId);
+        }
+
+        function removeEditSubstitution(index) {
+            editMatchSubstitutions.splice(index, 1);
+            renderSubRows('edit-sub-rows', editMatchSubstitutions, editingMatchTournamentId);
+        }
+
+        /* ===== 交代による出場時間の自動計算 ===== */
+        function applySubstitutionsToAppearances(appearances, subs, tournament) {
+            if (!subs.length) return;
+            const isMinutes = tournament && tournament.managementType === 'minutes';
+            const matchDuration = tournament ? (tournament.matchDuration || null) : null;
+
+            subs.forEach(s => {
+                if (!s.outId || !s.inId) return;
+                if (isMinutes) {
+                    const subMin = s.substitutionMinute;
+                    if (subMin == null || matchDuration == null) return;
+                    // OUT選手: 交代分数が出場時間
+                    const outEntry = appearances.find(a => a.playerId === s.outId);
+                    if (outEntry) outEntry.value = subMin;
+                    // IN選手: 試合時間 - 交代分数が出場時間（未出場なら追加）
+                    const inEntry = appearances.find(a => a.playerId === s.inId);
+                    if (inEntry) {
+                        inEntry.value = matchDuration - subMin;
+                    } else {
+                        appearances.push({ playerId: s.inId, value: matchDuration - subMin, half: 'full' });
+                    }
+                } else {
+                    // count管理: OUT→前半(0.5)、IN→後半(0.5)
+                    const outEntry = appearances.find(a => a.playerId === s.outId);
+                    if (outEntry) { outEntry.value = 0.5; outEntry.half = 'first'; }
+                    const inEntry = appearances.find(a => a.playerId === s.inId);
+                    if (inEntry) {
+                        inEntry.value = 0.5; inEntry.half = 'second';
+                    } else {
+                        appearances.push({ playerId: s.inId, value: 0.5, half: 'second' });
+                    }
+                }
+            });
+        }
+
+        /* ===== 試合保存 ===== */
+        function saveMatch() {
+            const tid = parseInt(document.getElementById('record-tournament').value);
+            const date = document.getElementById('matchDate').value;
+            const opponent = document.getElementById('matchOpponent').value.trim();
+            const recorder = document.getElementById('matchRecorder').value.trim();
+            if (!date) { alert('日付を入力してください'); return; }
+
+            const t = data.tournaments.find(t => t.id === tid);
+            const isMinutes = t && t.managementType === 'minutes';
+            let appearances;
+
+            if (isMinutes) {
+                appearances = Object.entries(matchAppearances)
+                    .filter(([, v]) => v > 0)
+                    .map(([pid, value]) => ({ playerId: parseInt(pid), value, half: 'full' }));
+            } else {
+                appearances = Object.entries(matchAppearances)
+                    .filter(([, v]) => v > 0)
+                    .map(([pid, value]) => {
+                        const btn = document.querySelector(`.appearance-btn.sel-full[data-pid="${pid}"], .appearance-btn.sel-first[data-pid="${pid}"], .appearance-btn.sel-second[data-pid="${pid}"]`);
+                        const half = btn ? (btn.classList.contains('sel-first') ? 'first' : btn.classList.contains('sel-second') ? 'second' : 'full') : 'full';
+                        return { playerId: parseInt(pid), value, half };
+                    });
+            }
+            if (!appearances.length) { alert('出場選手を1人以上選択してください'); return; }
+
+            const subs = matchSubstitutions.filter(s => s.outId && s.inId)
+                .map(s => ({ outId: s.outId, inId: s.inId, substitutionMinute: s.substitutionMinute || null }));
+
+            applySubstitutionsToAppearances(appearances, subs, t);
+
+            data.matches.push({
+                id: nextId(data.matches), tournamentId: tid, date,
+                opponent: opponent || '不明', recorder: recorder || '',
+                appearances, substitutions: subs
+            });
+            data.matches.sort((a, b) => b.date.localeCompare(a.date));
+            lastMatchDate = date;
+            saveData();
+            alert('保存しました！');
+            matchSubstitutions = [];
+            renderMatchGrid(tid);
+            document.getElementById('matchDate').value = lastMatchDate;
+            document.getElementById('matchOpponent').value = '';
+            document.getElementById('matchRecorder').value = '';
+            renderSubRows('sub-rows', matchSubstitutions, tid);
+        }
+
+        /* ===== 試合編集 ===== */
+        let editingMatchTournamentId = null;
+
+        function openEditMatch(matchId) {
+            const m = data.matches.find(m => m.id === matchId);
+            if (!m) return;
+            editingMatchId = matchId;
+            editingMatchTournamentId = m.tournamentId;
+            editMatchAppearances = {};
+            m.appearances.forEach(a => { editMatchAppearances[a.playerId] = a.value; });
+            editMatchSubstitutions = (m.substitutions || []).map(s => ({ outId: s.outId, inId: s.inId, substitutionMinute: s.substitutionMinute || null }));
+
+            document.getElementById('edit-matchDate').value = m.date;
+            document.getElementById('edit-matchOpponent').value = m.opponent || '';
+            document.getElementById('edit-matchRecorder').value = m.recorder || '';
+
+            renderMatchGrid(m.tournamentId, 'edit-matchPlayersGrid', editMatchAppearances);
+
+            // count型の場合、既存の選択状態を視覚的に反映
+            const t = data.tournaments.find(t => t.id === m.tournamentId);
+            if (t && (t.managementType || 'count') === 'count') {
+                m.appearances.forEach(a => {
+                    const cls = a.half === 'first' ? 'sel-first' : a.half === 'second' ? 'sel-second' : 'sel-full';
+                    document.querySelectorAll(`#edit-matchPlayersGrid .appearance-btn[data-pid="${a.playerId}"]`).forEach(b => {
+                        if ((a.half === 'full' && b.textContent === 'フル') ||
+                            (a.half === 'first' && b.textContent === '前半') ||
+                            (a.half === 'second' && b.textContent === '後半')) {
+                            b.classList.add(cls);
+                        }
+                    });
+                });
+            }
+
+            renderSubRows('edit-sub-rows', editMatchSubstitutions, m.tournamentId);
+            document.getElementById('edit-match-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-match-modal').classList.add('hidden');
+            editingMatchId = null;
+        }
+
+        function saveEditMatch() {
+            const m = data.matches.find(m => m.id === editingMatchId);
+            if (!m) return;
+            const date = document.getElementById('edit-matchDate').value;
+            const opponent = document.getElementById('edit-matchOpponent').value.trim();
+            const recorder = document.getElementById('edit-matchRecorder').value.trim();
+            if (!date) { alert('日付を入力してください'); return; }
+
+            const t = data.tournaments.find(t => t.id === m.tournamentId);
+            const isMinutes = t && t.managementType === 'minutes';
+            let appearances;
+
+            if (isMinutes) {
+                appearances = Object.entries(editMatchAppearances)
+                    .filter(([, v]) => v > 0)
+                    .map(([pid, value]) => ({ playerId: parseInt(pid), value, half: 'full' }));
+            } else {
+                appearances = Object.entries(editMatchAppearances)
+                    .filter(([, v]) => v > 0)
+                    .map(([pid, value]) => {
+                        const btn = document.querySelector(`#edit-matchPlayersGrid .appearance-btn.sel-full[data-pid="${pid}"], #edit-matchPlayersGrid .appearance-btn.sel-first[data-pid="${pid}"], #edit-matchPlayersGrid .appearance-btn.sel-second[data-pid="${pid}"]`);
+                        const half = btn ? (btn.classList.contains('sel-first') ? 'first' : btn.classList.contains('sel-second') ? 'second' : 'full') : 'full';
+                        return { playerId: parseInt(pid), value, half };
+                    });
+            }
+            if (!appearances.length) { alert('出場選手を1人以上選択してください'); return; }
+
+            const editedSubs = editMatchSubstitutions.filter(s => s.outId && s.inId)
+                .map(s => ({ outId: s.outId, inId: s.inId, substitutionMinute: s.substitutionMinute || null }));
+
+            // 既存の交代選手を取得
+            const existingSubs = m.substitutions || [];
+
+            // 新規の交代選手のみを取得（既存と重複していない）
+            const newSubs = editedSubs.filter(s =>
+                !existingSubs.some(es => es.outId === s.outId && es.inId === s.inId)
+            );
+
+            // 新規の交代選手のみを適用（既存の交代による出現情報を保持）
+            applySubstitutionsToAppearances(appearances, newSubs, t);
+
+            // 既存の交代選手と新規の交代選手をマージして保存
+            const allSubs = [...editedSubs];
+            existingSubs.forEach(es => {
+                if (!editedSubs.some(s => s.outId === es.outId && s.inId === es.inId)) {
+                    allSubs.push(es);
+                }
+            });
+
+            m.date = date;
+            m.opponent = opponent || '不明';
+            m.recorder = recorder || '';
+            m.appearances = appearances;
+            m.substitutions = allSubs;
+            data.matches.sort((a, b) => b.date.localeCompare(a.date));
+            saveData();
+            closeEditModal();
+            refreshAll();
+        }
+
+        /* ===== 集計 ===== */
+        function renderRanking() {
+            const tabsEl = document.getElementById('stat-tabs');
+            tabsEl.innerHTML = '';
+
+            if (currentStatTab === 'total') {
+                currentStatTab = data.tournaments.length ? data.tournaments[0].id : 'total';
+            }
+
+            data.tournaments.forEach(t => {
+                const btn = document.createElement('button');
+                btn.className = 'stat-tab' + (currentStatTab === t.id ? ' active' : '');
+                btn.textContent = t.name;
+                btn.onclick = () => { currentStatTab = t.id; renderRanking(); };
+                tabsEl.appendChild(btn);
+            });
+
+            const container = document.getElementById('rankingContent');
+            let players, tournamentId, mgmtType;
+            if (currentStatTab === 'total') {
+                players = data.players;
+                tournamentId = null;
+                mgmtType = 'count';
+            } else {
+                const t = data.tournaments.find(t => t.id === currentStatTab);
+                if (!t) { container.innerHTML = ''; return; }
+                players = data.players.filter(p => t.memberIds.includes(p.id));
+                tournamentId = t.id;
+                mgmtType = t.managementType || 'count';
+            }
+
+            const totals = players.map(p => ({
+                ...p, total: getPlayerTotal(p.id, tournamentId)
+            })).sort((a, b) => b.total - a.total || a.number - b.number);
+
+            if (!totals.length) { container.innerHTML = '<div class="empty-state">データがありません</div>'; return; }
+
+            const maxTotal = Math.max(...totals.map(t => t.total), 1);
+            const colLabel = mgmtType === 'minutes' ? '出場分数' : '出場数';
+
+            // 同点は同順位（standard ranking）
+            let rank = 1;
+            totals.forEach((t, i) => {
+                if (i > 0 && t.total < totals[i - 1].total) rank = i + 1;
+                t._rank = rank;
+            });
+
+            // 出場数ごとにグループ色を交互に割り当て
+            const uniqueTotals = [...new Set(totals.map(t => t.total))];
+            const groupColors = ['', '#f0faf4', '#fff8f0', '#f0f4ff', '#fff0f8', '#f4fff0'];
+            const colorMap = {};
+            uniqueTotals.forEach((v, i) => { colorMap[v] = groupColors[i % groupColors.length]; });
+
+            let html = `<table class="ranking-table"><thead><tr><th></th><th>選手</th><th>${colLabel}</th><th style="width:35%"></th></tr></thead><tbody>`;
+            totals.forEach(t => {
+                const r = t._rank;
+                const badgeCls = r === 1 ? 'rank-1' : r === 2 ? 'rank-2' : r === 3 ? 'rank-3' : '';
+                const pct = (t.total / maxTotal * 100).toFixed(1);
+                const bg = colorMap[t.total] ? `background:${colorMap[t.total]}` : '';
+                html += `<tr style="${bg}">
+                    <td><span class="rank-badge ${badgeCls}">${r}</span></td>
+                    <td>#${t.number} ${esc(t.name)}</td>
+                    <td style="font-weight:700">${formatTotal(t.total, mgmtType)}</td>
+                    <td><div class="bar-container"><div class="bar-fill" style="width:${pct}%"></div></div></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        /* ===== 履歴 ===== */
+        function updateHistoryDateFilter(date) {
+            historyDateFilter = date;
+            renderHistory();
+        }
+
+        function toggleMatchExpand(matchId) {
+            if (expandedMatchIds.has(matchId)) {
+                expandedMatchIds.delete(matchId);
+            } else {
+                expandedMatchIds.add(matchId);
+            }
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('matchHistory');
+            const matches = historyDateFilter
+                ? data.matches.filter(m => m.date === historyDateFilter)
+                : data.matches;
+
+            if (!matches.length) {
+                container.innerHTML = '<div class="empty-state">まだ試合記録がありません</div>';
+                return;
+            }
+            container.innerHTML = '';
+
+            const groups = {};
+            matches.forEach(m => {
+                const key = m.tournamentId || 'none';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(m);
+            });
+
+            Object.entries(groups).forEach(([key, matches]) => {
+                const t = data.tournaments.find(t => t.id === parseInt(key));
+                const mgmtType = t ? (t.managementType || 'count') : 'count';
+                const title = document.createElement('div');
+                title.className = 'history-group-title';
+                title.textContent = t ? t.name : 'イベントなし';
+                container.appendChild(title);
+
+                matches.forEach(m => {
+                    const isExpanded = expandedMatchIds.has(m.id);
+                    const div = document.createElement('div');
+                    div.className = 'match-history-item';
+
+                    const details = m.appearances.map(a => {
+                        const label = mgmtType === 'minutes'
+                            ? `(${a.value}分)`
+                            : (a.half === 'first' ? '(前)' : a.half === 'second' ? '(後)' : '');
+                        return getPlayerName(a.playerId) + label;
+                    }).join('、');
+
+                    const subs = m.substitutions || [];
+                    const subHtml = subs.length
+                        ? subs.map(s => `<div class="gameplan-sub-row">⇄ ${getPlayerName(s.outId)} → ${getPlayerName(s.inId)}</div>`).join('')
+                        : '<div class="gameplan-no-sub">交代なし</div>';
+
+                    div.innerHTML = `
+                        <div class="match-summary" onclick="toggleMatchExpand(${m.id})">
+                            <div class="match-summary-left">
+                                <div><span class="match-date">${m.date}</span> <span class="match-opponent">vs ${esc(m.opponent)}</span></div>
+                                ${m.recorder ? `<div style="font-size:0.75rem;color:#2d8a4e;font-weight:600;margin-top:2px">📝 ${esc(m.recorder)}</div>` : ''}
+                                <div class="match-detail">${esc(details)}</div>
+                            </div>
+                            <div class="match-summary-actions">
+                                <button class="btn-edit" onclick="handleEditMatch(event,${m.id})">✏️</button>
+                                <button class="btn-danger" onclick="handleDeleteMatch(event,${m.id})">🗑</button>
+                                <span class="expand-arrow${isExpanded ? ' open' : ''}">▼</span>
+                            </div>
+                        </div>
+                        <div class="match-gameplan${isExpanded ? ' open' : ''}">
+                            <div class="gameplan-title">🔄 ゲームプラン</div>
+                            ${subHtml}
+                        </div>`;
+                    container.appendChild(div);
+                });
+            });
+        }
+
+        function deleteMatch(id) {
+            if (!confirm('この試合記録を削除しますか？')) return;
+            data.matches = data.matches.filter(m => m.id !== id);
+            expandedMatchIds.delete(id);
+            saveData(); refreshAll();
+        }
+
+        function handleEditMatch(e, matchId) {
+            e.stopPropagation();
+            openEditMatch(matchId);
+        }
+
+        function handleDeleteMatch(e, matchId) {
+            e.stopPropagation();
+            deleteMatch(matchId);
+        }
+
+        /* ===== 設定モーダル ===== */
+        function openSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            renderSettingsPlayerList();
+            renderMVPTournamentSelect();
+            renderMVPHistory();
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function switchSettingsTab(tabName) {
+            document.querySelectorAll('.settings-tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`${tabName}-content`).classList.add('active');
+            if (tabName === 'mvp-mgmt') {
+                renderMVPTournamentSelect();
+                renderMVPHistory();
+            }
+        }
+
+        function renderSettingsPlayerList() {
+            const list = document.getElementById('settingsPlayerList');
+            list.innerHTML = '';
+            sortedPlayers().forEach(p => {
+                const total = getPlayerTotal(p.id, null);
+                const li = document.createElement('li');
+                li.className = 'player-item';
+                li.innerHTML = `
+                    <div class="player-number">${p.number}</div>
+                    <input class="player-name-input" value="${esc(p.name)}"
+                        onchange="updatePlayerName(${p.id}, this.value)" placeholder="名前">
+                    <button class="btn-danger" onclick="deletePlayer(${p.id})">×</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        function renderMVPTournamentSelect() {
+            const sel = document.getElementById('mvp-tournament-select');
+            sel.innerHTML = '<option value="">-- イベントを選んでください --</option>';
+            data.tournaments.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                sel.appendChild(opt);
+            });
+            sel.onchange = renderMVPPlayerSelect;
+        }
+
+        function renderMVPPlayerSelect() {
+            const tournamentId = parseInt(document.getElementById('mvp-tournament-select').value);
+            const sel = document.getElementById('mvp-player-select');
+            sel.innerHTML = '<option value="">-- 選手を選んでください --</option>';
+            if (!tournamentId) return;
+            const t = data.tournaments.find(t => t.id === tournamentId);
+            if (!t) return;
+            const members = sortedPlayers().filter(p => t.memberIds.includes(p.id));
+            members.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `#${p.number} ${p.name}`;
+                sel.appendChild(opt);
+            });
+        }
+
+        function saveMVP() {
+            const tournamentId = parseInt(document.getElementById('mvp-tournament-select').value);
+            const date = document.getElementById('mvp-date').value;
+            const playerId = parseInt(document.getElementById('mvp-player-select').value);
+            const comment = document.getElementById('mvp-comment').value.trim();
+
+            if (!tournamentId || !date || !playerId) {
+                alert('イベント、日付、選手をすべて選択してください');
+                return;
+            }
+
+            if (!data.mvps) data.mvps = [];
+            data.mvps.push({
+                id: nextId(data.mvps),
+                tournamentId, date, playerId, comment
+            });
+            saveData();
+            document.getElementById('mvp-tournament-select').value = '';
+            document.getElementById('mvp-date').value = '';
+            document.getElementById('mvp-player-select').value = '';
+            document.getElementById('mvp-comment').value = '';
+            renderMVPHistory();
+            alert('MVP記録を保存しました！');
+        }
+
+        function renderMVPHistory() {
+            const container = document.getElementById('mvp-history-content');
+            if (!data.mvps || !data.mvps.length) {
+                container.innerHTML = '<div class="empty-state">MVP記録がありません</div>';
+                return;
+            }
+
+            const sorted = [...data.mvps].sort((a, b) => b.date.localeCompare(a.date));
+            let html = '';
+            sorted.forEach(m => {
+                const t = data.tournaments.find(t => t.id === m.tournamentId);
+                const p = data.players.find(p => p.id === m.playerId);
+                const tName = t ? t.name : '不明なイベント';
+                const pName = p ? `#${p.number} ${p.name}` : '不明な選手';
+                html += `<div style="padding:10px;background:#f8f9fa;border-radius:8px;margin-bottom:8px">
+                    <div style="font-weight:700;color:#1a5632;font-size:0.9rem">${m.date} ${tName}</div>
+                    <div style="font-size:0.88rem;color:#333;margin-top:3px">🏆 ${pName}</div>
+                    ${m.comment ? `<div style="font-size:0.8rem;color:#666;margin-top:3px">${esc(m.comment)}</div>` : ''}
+                    <button class="btn-danger" onclick="deleteMVP(${m.id})" style="margin-top:6px;float:right">×</button>
+                    <div style="clear:both"></div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function deleteMVP(id) {
+            if (!confirm('このMVP記録を削除しますか？')) return;
+            data.mvps = data.mvps.filter(m => m.id !== id);
+            saveData();
+            renderMVPHistory();
+        }
+
+        refreshAll();
+    </script>
+</body>
+</html>
