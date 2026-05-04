@@ -321,11 +321,21 @@
             </div>
             <div class="form-group">
                 <label>1試合の出場人数</label>
-                <input type="number" id="modal-players-per-match" min="1" max="30" placeholder="例: 8">
+                <input type="number" id="modal-players-per-match" min="1" max="30" placeholder="例: 8" onchange="calculateAppearanceTime()" oninput="calculateAppearanceTime()">
             </div>
             <div class="form-group" id="modal-duration-wrap" style="display:none">
                 <label>1試合の時間（分）</label>
-                <input type="number" id="modal-match-duration" min="1" max="300" placeholder="例: 40">
+                <input type="number" id="modal-match-duration" min="1" max="300" placeholder="例: 40" onchange="calculateAppearanceTime()" oninput="calculateAppearanceTime()">
+            </div>
+            <div class="form-group">
+                <label>合計試合数</label>
+                <input type="number" id="modal-total-matches" min="1" max="100" placeholder="例: 10" onchange="calculateAppearanceTime()" oninput="calculateAppearanceTime()">
+            </div>
+            <div class="form-group">
+                <label style="color:#2d8a4e;font-weight:700">📊 一人あたりの出場時間</label>
+                <div style="background:#f8fff8;padding:12px;border-radius:8px;border:2px solid #c8e6c9;font-size:1rem;font-weight:700;color:#1a5632;text-align:center;min-height:40px;display:flex;align-items:center;justify-content:center">
+                    <span id="modal-calculated-time">-</span>
+                </div>
             </div>
             <div class="form-group" id="modal-initial-wrap" style="display:flex;align-items:center;gap:10px;padding:8px 0">
                 <input type="checkbox" id="modal-includes-initial" style="width:18px;height:18px;cursor:pointer">
@@ -793,11 +803,13 @@
                 chip.className = 'member-chip' + (selectedIds.has(p.id) ? ' checked' : '');
                 chip.dataset.id = p.id;
                 chip.textContent = `#${p.number} ${p.name}`;
-                chip.onclick = () => chip.classList.toggle('checked');
+                chip.onclick = () => { chip.classList.toggle('checked'); calculateAppearanceTime(); };
                 grid.appendChild(chip);
             });
 
+            document.getElementById('modal-total-matches').value = t ? (t.totalMatches || '') : '';
             modal.classList.remove('hidden');
+            calculateAppearanceTime();
         }
 
         function updateInitialWrap() {
@@ -817,6 +829,32 @@
             chips.forEach(c => allChecked ? c.classList.remove('checked') : c.classList.add('checked'));
         }
 
+        function calculateAppearanceTime() {
+            const matchDuration = parseInt(document.getElementById('modal-match-duration').value) || 0;
+            const totalMatches = parseInt(document.getElementById('modal-total-matches').value) || 0;
+            const playersPerMatch = parseInt(document.getElementById('modal-players-per-match').value) || 0;
+            const selectedMembers = document.querySelectorAll('#modal-member-grid .member-chip.checked').length;
+
+            const resultEl = document.getElementById('modal-calculated-time');
+
+            if (!matchDuration || !totalMatches || !playersPerMatch || !selectedMembers) {
+                resultEl.textContent = '-';
+                return;
+            }
+
+            const totalAppearanceMinutes = matchDuration * totalMatches * playersPerMatch;
+            const minutesPerPlayer = totalAppearanceMinutes / selectedMembers;
+
+            const hours = Math.floor(minutesPerPlayer / 60);
+            const minutes = Math.round(minutesPerPlayer % 60);
+
+            if (hours > 0) {
+                resultEl.textContent = `${hours}時間${minutes}分`;
+            } else {
+                resultEl.textContent = `${Math.round(minutesPerPlayer)}分`;
+            }
+        }
+
         function saveTournament() {
             const name = document.getElementById('modal-tournament-name').value.trim();
             if (!name) { alert('イベント名を入力してください'); return; }
@@ -826,12 +864,13 @@
             const managementType = document.getElementById('mgmt-minutes').checked ? 'minutes' : 'count';
             const matchDuration = managementType === 'minutes' ? (parseInt(document.getElementById('modal-match-duration').value) || null) : null;
             const playersPerMatch = parseInt(document.getElementById('modal-players-per-match').value) || null;
+            const totalMatches = parseInt(document.getElementById('modal-total-matches').value) || null;
 
             if (editingTournamentId) {
                 const t = data.tournaments.find(t => t.id === editingTournamentId);
-                if (t) { t.name = name; t.memberIds = memberIds; t.includesInitial = includesInitial; t.managementType = managementType; t.matchDuration = matchDuration; t.playersPerMatch = playersPerMatch; }
+                if (t) { t.name = name; t.memberIds = memberIds; t.includesInitial = includesInitial; t.managementType = managementType; t.matchDuration = matchDuration; t.playersPerMatch = playersPerMatch; t.totalMatches = totalMatches; }
             } else {
-                data.tournaments.push({ id: nextId(data.tournaments), name, memberIds, includesInitial, managementType, matchDuration, playersPerMatch });
+                data.tournaments.push({ id: nextId(data.tournaments), name, memberIds, includesInitial, managementType, matchDuration, playersPerMatch, totalMatches });
             }
             saveData(); closeModal(); refreshAll();
         }
